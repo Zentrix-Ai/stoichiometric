@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexonChem | Stoichiometric Calculator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --gradient-start: #3498db;
+            --gradient-end: #2c3e50;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: var(--light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            font-size: 2.5rem;
+            color: var(--accent);
+            filter: drop-shadow(0 0 10px rgba(231, 76, 60, 0.5));
+        }
+
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 25px;
+        }
+
+        nav a {
+            color: var(--light);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 15px;
+            border-radius: 20px;
+            transition: var(--transition);
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .calculator-card, .periodic-table-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--dark);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-accent:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .result-area {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            min-height: 150px;
+        }
+
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            gap: 5px;
+        }
+
+        .element {
+            padding: 8px 3px;
+            text-align: center;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .element:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+        .element .number {
+            font-size: 0.6rem;
+            opacity: 0.8;
+        }
+
+        .element .symbol {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .element .name {
+            font-size: 0.5rem;
+            display: none;
+        }
+
+        .empty {
+            grid-column: span 1;
+        }
+
+        .alkali-metal { background: rgba(231, 76, 60, 0.3); }
+        .alkaline-earth-metal { background: rgba(241, 196, 15, 0.3); }
+        .transition-metal { background: rgba(46, 204, 113, 0.3); }
+        .basic-metal { background: rgba(52, 152, 219, 0.3); }
+        .semimetal { background: rgba(155, 89, 182, 0.3); }
+        .nonmetal { background: rgba(26, 188, 156, 0.3); }
+        .halogen { background: rgba(230, 126, 34, 0.3); }
+        .noble-gas { background: rgba(52, 152, 219, 0.5); }
+        .lanthanide { background: rgba(241, 196, 15, 0.5); }
+        .actinide { background: rgba(231, 76, 60, 0.5); }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .periodic-table {
+                grid-template-columns: repeat(9, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            header {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            nav ul {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .periodic-table {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-atom logo-icon"></i>
+                <div class="logo-text">NexonChem</div>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#" class="active">Calculator</a></li>
+                    <li><a href="#">Periodic Table</a></li>
+                    <li><a href="#">Tutorials</a></li>
+                    <li><a href="#">About</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <section class="calculator-card">
+                <h2 class="card-title">
+                    <i class="fas fa-calculator"></i>
+                    Stoichiometric Calculator
+                </h2>
+                
+                <div class="input-group">
+                    <label for="reaction">Chemical Reaction</label>
+                    <input type="text" id="reaction" placeholder="e.g., 2H2 + O2 → 2H2O">
+                </div>
+                
+                <div class="input-group">
+                    <label for="given-mass">Given Mass (g)</label>
+                    <input type="number" id="given-mass" placeholder="Enter mass in grams">
+                </div>
+                
+                <div class="input-group">
+                    <label for="substance">Substance</label>
+                    <select id="substance">
+                        <option value="H2">Hydrogen (H2)</option>
+                        <option value="O2">Oxygen (O2)</option>
+                        <option value="H2O">Water (H2O)</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-primary">
+                    <i class="fas fa-calculate"></i>
+                    Calculate
+                </button>
+                
+                <button class="btn btn-accent" style="margin-left: 10px;">
+                    <i class="fas fa-redo"></i>
+                    Reset
+                </button>
+                
+                <div class="result-area">
+                    <h3>Results:</h3>
+                    <p>Enter a reaction and mass to see stoichiometric calculations.</p>
+                </div>
+            </section>
+            
+            <section class="periodic-table-card">
+                <h2 class="card-title">
+                    <i class="fas fa-table"></i>
+                    Periodic Table
+                </h2>
+                
+                <div class="periodic-table">
+                    <!-- Row 1 -->
+                    <div class="element alkali-metal">
+                        <div class="number">1</div>
+                        <div class="symbol">H</div>
+                        <div class="name">Hydrogen</div>
+                    </div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="element noble-gas">
+                        <div class="number">2</div>
+                        <div class="symbol">He</div>
+                        <div class="name">Helium</div>
+                    </div>
+                    
+                    <!-- Row 2 -->
+                    <div class="element alkali-metal">
+                        <div class="number">3</div>
+                        <div class="symbol">Li</div>
+                        <div class="name">Lithium</div>
+                    </div>
+                    <div class="element alkaline-earth-metal">
+                        <div class="number">4</div>
+                        <div class="symbol">Be</div>
+                        <div class="name">Beryllium</div>
+                    </div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="empty"></div>
+                    <div class="element semimetal">
+                        <div class="number">5</div>
+                        <div class="symbol">B</div>
+                        <div class="name">Boron</div>
+                    </div>
+                    <div class="element nonmetal">
+                        <div class="number">6</div>
+                        <div class="symbol">C</div>
+                        <div class="name">Carbon</div>
+                    </div>
+                    <div class="element nonmetal">
+                        <div class="number">7</div>
+                        <div class="symbol">N</div>
+                        <div class="name">Nitrogen</div>
+                    </div>
+                    <div class="element nonmetal">
+                        <div class="number">8</div>
+                        <div class="symbol">O</div>
+                        <div class="name">Oxygen</div>
+                    </div>
+                    <div class="element halogen">
+                        <div class="number">9</div>
+                        <div class="symbol">F</div>
+                        <div class="name">Fluorine</div>
+                    </div>
+                    <div class="element noble-gas">
+                        <div class="number">10</div>
+                        <div class="symbol">Ne</div>
+                        <div class="name">Neon</div>
+                    </div>
+                    
+                    <!-- Additional elements would be added in a real implementation -->
+                    <div class="element alkali-metal">
+                        <div class="number">11</div>
+                        <div class="symbol">Na</div>
+                        <div class="name">Sodium</div>
+                    </div>
+                    <div class="element alkaline-earth-metal">
+                        <div class="number">12</div>
+                        <div class="symbol">Mg</div>
+                        <div class="name">Magnesium</div>
+                    </div>
+                    <!-- More elements would go here... -->
+                </div>
+            </section>
+        </main>
+        
+        <footer class="footer">
+            <p>© 2023 NexonChem Stoichiometric Calculator | A Nexon Accolade Style Application</p>
+        </footer>
+    </div>
+
+    <script>
+        // Simple functionality for the calculator
+        document.addEventListener('DOMContentLoaded', function() {
+            const calculateBtn = document.querySelector('.btn-primary');
+            const resetBtn = document.querySelector('.btn-accent');
+            const resultArea = document.querySelector('.result-area');
+            
+            calculateBtn.addEventListener('click', function() {
+                const reaction = document.getElementById('reaction').value;
+                const mass = document.getElementById('given-mass').value;
+                const substance = document.getElementById('substance').value;
+                
+                if (!reaction || !mass) {
+                    resultArea.innerHTML = '<h3>Results:</h3><p class="error">Please enter both a reaction and mass!</p>';
+                    return;
+                }
+                
+                // Fake calculation for demonstration
+                const calculatedMass = (parseFloat(mass) * 2.5).toFixed(2);
+                
+                resultArea.innerHTML = `
+                    <h3>Results:</h3>
+                    <p>For the reaction: <strong>${reaction}</strong></p>
+                    <p>Given mass of ${substance}: <strong>${mass} g</strong></p>
+                    <p>Calculated mass of product: <strong>${calculatedMass} g</strong></p>
+                    <p>Mole ratio: <strong>2:1</strong></p>
+                `;
+            });
+            
+            resetBtn.addEventListener('click', function() {
+                document.getElementById('reaction').value = '';
+                document.getElementById('given-mass').value = '';
+                document.getElementById('substance').selectedIndex = 0;
+                resultArea.innerHTML = '<h3>Results:</h3><p>Enter a reaction and mass to see stoichiometric calculations.</p>';
+            });
+            
+            // Add click event to periodic table elements
+            const elements = document.querySelectorAll('.element');
+            elements.forEach(element => {
+                element.addEventListener('click', function() {
+                    const symbol = this.querySelector('.symbol').textContent;
+                    document.getElementById('reaction').value += symbol;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
