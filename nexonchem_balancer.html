@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NexonChem — Interactive Stoichiometry & Balancer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0f1728; --muted:#9aa7bf; --accent:#4fd1c5; --accent2:#7c3aed;
+      --glass: rgba(255,255,255,0.03);
+      --glass2: rgba(255,255,255,0.02);
+      --text:#e6eef6;
+      --radius:12px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Segoe UI,system-ui,Arial;background:linear-gradient(180deg,#071021 0%, #0b1530 100%);color:var(--text);padding:18px}
+    .wrap{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:54px;height:54px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#042027}
+    h1{font-size:18px;margin:0}
+    .subtitle{font-size:13px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr 380px;gap:16px}
+    .card{background:linear-gradient(180deg,var(--card),#081226);padding:16px;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.03);box-shadow: 0 8px 30px rgba(2,6,23,0.6)}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"], input[type="number"], textarea, select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);font-size:14px}
+    .row{display:flex;gap:8px}
+    .btn{padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:600}
+    .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#022026}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)}
+    .result{margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);font-size:14px}
+    .periodic{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;max-height:420px;overflow:auto;padding:8px;border-radius:10px;background:var(--glass2)}
+    .el{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);text-align:center;cursor:pointer;border:1px solid rgba(255,255,255,0.02)}
+    .el:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,0.6)}
+    .el .sym{font-weight:700;font-size:16px}
+    .el .num{font-size:11px;color:var(--muted)}
+    .search{display:flex;gap:8px;margin-bottom:8px}
+    .small{font-size:13px;color:var(--muted)}
+    .flex{display:flex;gap:8px;align-items:center}
+    footer{margin-top:14px;text-align:center;color:var(--muted);font-size:13px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    /* modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal .dialog{background:#021022;padding:16px;border-radius:12px;max-width:520px;width:100%}
+    .close{float:right;background:transparent;border:0;color:var(--muted);cursor:pointer}
+    pre{white-space:pre-wrap;font-family:monospace;font-size:13px;color:#dbeafe}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">NX</div>
+        <div>
+          <h1>NexonChem — Interactive Balancer & Calculator</h1>
+          <div class="subtitle">Auto-balancer, molar mass, stoichiometry and a clickable periodic table</div>
+        </div>
+      </div>
+      <div class="flex">
+        <button id="downloadBtn" class="btn btn-ghost">Download HTML</button>
+        <button id="clearBtn" class="btn btn-ghost">Clear</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <main class="card">
+        <section>
+          <label for="reactionInput">Chemical Equation (unbalanced allowed)</label>
+          <input id="reactionInput" type="text" placeholder="e.g. H2 + O2 -> H2O" />
+          <div style="margin-top:8px" class="row">
+            <button id="balanceBtn" class="btn btn-primary">Auto-balance</button>
+            <button id="applyBtn" class="btn btn-ghost">Apply Balanced</button>
+            <div style="flex:1"></div>
+            <button id="insertDot" class="btn btn-ghost">• Add dot</button>
+          </div>
+          <div id="balanceResult" class="result small">Press "Auto-balance" to balance the entered equation</div>
+        </section>
+
+        <hr style="border:none;height:12px">
+
+        <section>
+          <label>Stoichiometry (use coefficients from balanced eq)</label>
+          <div class="row">
+            <input id="givenFormula" placeholder="Given compound (e.g. H2)" />
+            <input id="givenMass" placeholder="Mass (g)" type="number" />
+            <input id="targetFormula" placeholder="Target (e.g. H2O)" />
+            <button id="stoichCalc" class="btn btn-primary">Calculate</button>
+          </div>
+          <div id="stoichOut" class="result small">Results will appear here</div>
+        </section>
+
+        <hr style="border:none;height:12px">
+
+        <section>
+          <label for="formulaInput">Molar mass & formula parser</label>
+          <div class="row">
+            <input id="formulaInput" placeholder="e.g. Ca(OH)2 or C6H12O6" />
+            <button id="molarCalc" class="btn btn-primary">Molar mass</button>
+          </div>
+          <div id="molarOut" class="result small">Molar mass output</div>
+        </section>
+      </main>
+
+      <aside class="card">
+        <div class="small" style="margin-bottom:8px">Periodic Table — click an element to insert its symbol into the active input. Use search to filter.</div>
+        <div class="search">
+          <input id="searchEl" placeholder="Search symbol or name" />
+          <button id="clearSearch" class="btn btn-ghost">Clear</button>
+        </div>
+        <div id="ptable" class="periodic" aria-hidden="false"></div>
+        <div style="margin-top:10px" class="small">Click an element to view details</div>
+      </aside>
+    </div>
+
+    <footer>© 2025 NexonChem • Built for learning. Atomic masses are standard values.</footer>
+  </div>
+
+  <!-- element details modal -->
+  <div id="modal" class="modal"><div class="dialog">
+    <button id="closeModal" class="close">✕</button>
+    <div id="modalContent"></div>
+  </div></div>
+
+<script>
+/* ---------- Data: full 118 elements ---------- */
+const ELEMENTS = [
+{z:1,s:"H",name:"Hydrogen",m:1.008,cat:"Nonmetal"},
+{z:2,s:"He",name:"Helium",m:4.0026,cat:"Noble gas"},
+{z:3,s:"Li",name:"Lithium",m:6.94,cat:"Alkali metal"},
+{z:4,s:"Be",name:"Beryllium",m:9.0122,cat:"Alkaline earth"},
+{z:5,s:"B",name:"Boron",m:10.81,cat:"Metalloid"},
+{z:6,s:"C",name:"Carbon",m:12.011,cat:"Nonmetal"},
+{z:7,s:"N",name:"Nitrogen",m:14.007,cat:"Nonmetal"},
+{z:8,s:"O",name:"Oxygen",m:15.999,cat:"Nonmetal"},
+{z:9,s:"F",name:"Fluorine",m:18.998,cat:"Halogen"},
+{z:10,s:"Ne",name:"Neon",m:20.180,cat:"Noble gas"},
+{z:11,s:"Na",name:"Sodium",m:22.990,cat:"Alkali metal"},
+{z:12,s:"Mg",name:"Magnesium",m:24.305,cat:"Alkaline earth"},
+{z:13,s:"Al",name:"Aluminium",m:26.982,cat:"Post-transition"},
+{z:14,s:"Si",name:"Silicon",m:28.085,cat:"Metalloid"},
+{z:15,s:"P",name:"Phosphorus",m:30.974,cat:"Nonmetal"},
+{z:16,s:"S",name:"Sulfur",m:32.06,cat:"Nonmetal"},
+{z:17,s:"Cl",name:"Chlorine",m:35.45,cat:"Halogen"},
+{z:18,s:"Ar",name:"Argon",m:39.948,cat:"Noble gas"},
+{z:19,s:"K",name:"Potassium",m:39.098,cat:"Alkali metal"},
+{z:20,s:"Ca",name:"Calcium",m:40.078,cat:"Alkaline earth"},
+{z:21,s:"Sc",name:"Scandium",m:44.956,cat:"Transition"},
+{z:22,s:"Ti",name:"Titanium",m:47.867,cat:"Transition"},
+{z:23,s:"V",name:"Vanadium",m:50.942,cat:"Transition"},
+{z:24,s:"Cr",name:"Chromium",m:51.996,cat:"Transition"},
+{z:25,s:"Mn",name:"Manganese",m:54.938,cat:"Transition"},
+{z:26,s:"Fe",name:"Iron",m:55.845,cat:"Transition"},
+{z:27,s:"Co",name:"Cobalt",m:58.933,cat:"Transition"},
+{z:28,s:"Ni",name:"Nickel",m:58.693,cat:"Transition"},
+{z:29,s:"Cu",name:"Copper",m:63.546,cat:"Transition"},
+{z:30,s:"Zn",name:"Zinc",m:65.38,cat:"Transition"},
+{z:31,s:"Ga",name:"Gallium",m:69.723,cat:"Post-transition"},
+{z:32,s:"Ge",name:"Germanium",m:72.630,cat:"Metalloid"},
+{z:33,s:"As",name:"Arsenic",m:74.922,cat:"Metalloid"},
+{z:34,s:"Se",name:"Selenium",m:78.971,cat:"Nonmetal"},
+{z:35,s:"Br",name:"Bromine",m:79.904,cat:"Halogen"},
+{z:36,s:"Kr",name:"Krypton",m:83.798,cat:"Noble gas"},
+{z:37,s:"Rb",name:"Rubidium",m:85.468,cat:"Alkali metal"},
+{z:38,s:"Sr",name:"Strontium",m:87.62,cat:"Alkaline earth"},
+{z:39,s:"Y",name:"Yttrium",m:88.906,cat:"Transition"},
+{z:40,s:"Zr",name:"Zirconium",m:91.224,cat:"Transition"},
+{z:41,s:"Nb",name:"Niobium",m:92.906,cat:"Transition"},
+{z:42,s:"Mo",name:"Molybdenum",m:95.95,cat:"Transition"},
+{z:43,s:"Tc",name:"Technetium",m:98,cat:"Transition"},
+{z:44,s:"Ru",name:"Ruthenium",m:101.07,cat:"Transition"},
+{z:45,s:"Rh",name:"Rhodium",m:102.91,cat:"Transition"},
+{z:46,s:"Pd",name:"Palladium",m:106.42,cat:"Transition"},
+{z:47,s:"Ag",name:"Silver",m:107.87,cat:"Transition"},
+{z:48,s:"Cd",name:"Cadmium",m:112.41,cat:"Transition"},
+{z:49,s:"In",name:"Indium",m:114.82,cat:"Post-transition"},
+{z:50,s:"Sn",name:"Tin",m:118.71,cat:"Post-transition"},
+{z:51,s:"Sb",name:"Antimony",m:121.76,cat:"Metalloid"},
+{z:52,s:"Te",name:"Tellurium",m:127.60,cat:"Metalloid"},
+{z:53,s:"I",name:"Iodine",m:126.90,cat:"Halogen"},
+{z:54,s:"Xe",name:"Xenon",m:131.29,cat:"Noble gas"},
+{z:55,s:"Cs",name:"Caesium",m:132.91,cat:"Alkali metal"},
+{z:56,s:"Ba",name:"Barium",m:137.33,cat:"Alkaline earth"},
+{z:57,s:"La",name:"Lanthanum",m:138.91,cat:"Lanthanide"},
+{z:58,s:"Ce",name:"Cerium",m:140.12,cat:"Lanthanide"},
+{z:59,s:"Pr",name:"Praseodymium",m:140.91,cat:"Lanthanide"},
+{z:60,s:"Nd",name:"Neodymium",m:144.24,cat:"Lanthanide"},
+{z:61,s:"Pm",name:"Promethium",m:145,cat:"Lanthanide"},
+{z:62,s:"Sm",name:"Samarium",m:150.36,cat:"Lanthanide"},
+{z:63,s:"Eu",name:"Europium",m:151.96,cat:"Lanthanide"},
+{z:64,s:"Gd",name:"Gadolinium",m:157.25,cat:"Lanthanide"},
+{z:65,s:"Tb",name:"Terbium",m:158.93,cat:"Lanthanide"},
+{z:66,s:"Dy",name:"Dysprosium",m:162.50,cat:"Lanthanide"},
+{z:67,s:"Ho",name:"Holmium",m:164.93,cat:"Lanthanide"},
+{z:68,s:"Er",name:"Erbium",m:167.26,cat:"Lanthanide"},
+{z:69,s:"Tm",name:"Thulium",m:168.93,cat:"Lanthanide"},
+{z:70,s:"Yb",name:"Ytterbium",m:173.05,cat:"Lanthanide"},
+{z:71,s:"Lu",name:"Lutetium",m:174.97,cat:"Lanthanide"},
+{z:72,s:"Hf",name:"Hafnium",m:178.49,cat:"Transition"},
+{z:73,s:"Ta",name:"Tantalum",m:180.95,cat:"Transition"},
+{z:74,s:"W",name:"Tungsten",m:183.84,cat:"Transition"},
+{z:75,s:"Re",name:"Rhenium",m:186.21,cat:"Transition"},
+{z:76,s:"Os",name:"Osmium",m:190.23,cat:"Transition"},
+{z:77,s:"Ir",name:"Iridium",m:192.22,cat:"Transition"},
+{z:78,s:"Pt",name:"Platinum",m:195.08,cat:"Transition"},
+{z:79,s:"Au",name:"Gold",m:196.97,cat:"Transition"},
+{z:80,s:"Hg",name:"Mercury",m:200.59,cat:"Transition"},
+{z:81,s:"Tl",name:"Thallium",m:204.38,cat:"Post-transition"},
+{z:82,s:"Pb",name:"Lead",m:207.2,cat:"Post-transition"},
+{z:83,s:"Bi",name:"Bismuth",m:208.98,cat:"Post-transition"},
+{z:84,s:"Po",name:"Polonium",m:209,cat:"Post-transition"},
+{z:85,s:"At",name:"Astatine",m:210,cat:"Halogen"},
+{z:86,s:"Rn",name:"Radon",m:222,cat:"Noble gas"},
+{z:87,s:"Fr",name:"Francium",m:223,cat:"Alkali metal"},
+{z:88,s:"Ra",name:"Radium",m:226,cat:"Alkaline earth"},
+{z:89,s:"Ac",name:"Actinium",m:227,cat:"Actinide"},
+{z:90,s:"Th",name:"Thorium",m:232.04,cat:"Actinide"},
+{z:91,s:"Pa",name:"Protactinium",m:231.04,cat:"Actinide"},
+{z:92,s:"U",name:"Uranium",m:238.03,cat:"Actinide"},
+{z:93,s:"Np",name:"Neptunium",m:237,cat:"Actinide"},
+{z:94,s:"Pu",name:"Plutonium",m:244,cat:"Actinide"},
+{z:95,s:"Am",name:"Americium",m:243,cat:"Actinide"},
+{z:96,s:"Cm",name:"Curium",m:247,cat:"Actinide"},
+{z:97,s:"Bk",name:"Berkelium",m:247,cat:"Actinide"},
+{z:98,s:"Cf",name:"Californium",m:251,cat:"Actinide"},
+{z:99,s:"Es",name:"Einsteinium",m:252,cat:"Actinide"},
+{z:100,s:"Fm",name:"Fermium",m:257,cat:"Actinide"},
+{z:101,s:"Md",name:"Mendelevium",m:258,cat:"Actinide"},
+{z:102,s:"No",name:"Nobelium",m:259,cat:"Actinide"},
+{z:103,s:"Lr",name:"Lawrencium",m:266,cat:"Actinide"},
+{z:104,s:"Rf",name:"Rutherfordium",m:267,cat:"Transition"},
+{z:105,s:"Db",name:"Dubnium",m:268,cat:"Transition"},
+{z:106,s:"Sg",name:"Seaborgium",m:269,cat:"Transition"},
+{z:107,s:"Bh",name:"Bohrium",m:270,cat:"Transition"},
+{z:108,s:"Hs",name:"Hassium",m:269,cat:"Transition"},
+{z:109,s:"Mt",name:"Meitnerium",m:278,cat:"Unknown"},
+{z:110,s:"Ds",name:"Darmstadtium",m:281,cat:"Unknown"},
+{z:111,s:"Rg",name:"Roentgenium",m:282,cat:"Unknown"},
+{z:112,s:"Cn",name:"Copernicium",m:285,cat:"Unknown"},
+{z:113,s:"Nh",name:"Nihonium",m:286,cat:"Unknown"},
+{z:114,s:"Fl",name:"Flerovium",m:289,cat:"Unknown"},
+{z:115,s:"Mc",name:"Moscovium",m:288,cat:"Unknown"},
+{z:116,s:"Lv",name:"Livermorium",m:293,cat:"Unknown"},
+{z:117,s:"Ts",name:"Tennessine",m:294,cat:"Unknown"},
+{z:118,s:"Og",name:"Oganesson",m:294,cat:"Unknown"}
+];
+
+/* ---------- Helpers: formula parser (supports parentheses) ---------- */
+function parseFormula(formula){
+  formula = formula.replace(/\s+/g,'');
+  let i=0;
+  function parseSegment(){
+    const counts = {};
+    while(i < formula.length){
+      const ch = formula[i];
+      if(ch === '('){
+        i++;
+        const inner = parseSegment();
+        let num = parseNumber();
+        for(const k in inner) counts[k] = (counts[k]||0) + inner[k]*num;
+      } else if(ch === ')'){
+        i++;
+        return counts;
+      } else {
+        if(!/[A-Z]/.test(ch)){
+          i++; continue;
+        }
+        let sym = ch; i++;
+        if(i < formula.length && /[a-z]/.test(formula[i])){ sym += formula[i]; i++; }
+        let num = parseNumber();
+        counts[sym] = (counts[sym]||0) + num;
+      }
+    }
+    return counts;
+  }
+  function parseNumber(){
+    let s='';
+    while(i < formula.length && /\d/.test(formula[i])){ s += formula[i]; i++; }
+    return s ? parseInt(s,10) : 1;
+  }
+  try{
+    i=0; return parseSegment();
+  }catch(e){ return null; }
+}
+
+/* ---------- Molar mass ---------- */
+function molarMass(formula){
+  const comp = parseFormula(formula);
+  if(!comp) return {error:'Could not parse formula'};
+  let total = 0;
+  for(const sym in comp){
+    const el = ELEMENTS.find(e=> e.s === sym);
+    if(!el) return {error:'Unknown element: '+sym};
+    total += el.m * comp[sym];
+  }
+  return {mass: total, comp};
+}
+
+/* ---------- Reaction parsing and balancing ---------- */
+/* We'll construct integer matrix and compute nullspace using rational arithmetic.
+   Implementation: create matrix A where rows = elements, cols = compounds (reactants+products).
+   For reactants columns are positive, for products columns are negative (or vice versa).
+   Solve A * x = 0 for non-trivial integer x. We'll use fractions implemented as {n,d}.
+*/
+
+function gcd(a,b){ if(b===0) return Math.abs(a); return gcd(b, a%b); }
+function lcm(a,b){ return Math.abs(a/gcd(a,b)*b); }
+function frac(n,d=1){ if(d<0){ n=-n; d=-d;} const g = gcd(Math.abs(n),Math.abs(d)); return {n:n/g, d:d/g}; }
+function addF(a,b){ return frac(a.n*b.d + b.n*a.d, a.d*b.d); }
+function subF(a,b){ return frac(a.n*b.d - b.n*a.d, a.d*b.d); }
+function mulF(a,b){ return frac(a.n*b.n, a.d*b.d); }
+function divF(a,b){ return frac(a.n*b.d, a.d*b.n); }
+function isZeroF(a){ return a.n === 0; }
+
+function parseReactionString(rxn){
+  rxn = rxn.replace('→','->').replace('=','->').replace('—','->');
+  const parts = rxn.split('->');
+  if(parts.length !== 2) return null;
+  const left = parts[0].split('+').map(s=>s.trim()).filter(Boolean);
+  const right = parts[1].split('+').map(s=>s.trim()).filter(Boolean);
+  function norm(arr){ return arr.map(tok=>{
+    const m = tok.match(/^(\d+)\s*(.*)$/);
+    if(m) return {coef: parseInt(m[1],10), formula: m[2].replace(/\s+/g,'')};
+    return {coef:1, formula: tok.replace(/\s+/g,'')};
+  }); }
+  return {left:norm(left), right:norm(right)};
+}
+
+// Build element list and matrix
+function buildMatrix(parsed){
+  const compounds = parsed.left.concat(parsed.right);
+  const elementSet = {};
+  compounds.forEach(c=>{
+    const comp = parseFormula(c.formula);
+    if(!comp) throw new Error('Invalid formula: '+c.formula);
+    for(const el in comp) elementSet[el]=true;
+  });
+  const elements = Object.keys(elementSet);
+  const rows = elements.length;
+  const cols = compounds.length;
+  // matrix rows x cols of fractions
+  const A = Array.from({length:rows}, ()=> Array.from({length:cols}, ()=> frac(0,1)));
+  elements.forEach((el, i)=>{
+    compounds.forEach((c,j)=>{
+      const comp = parseFormula(c.formula);
+      const count = comp[el] || 0;
+      // reactants positive, products negative (so sum=0)
+      const sign = j < parsed.left.length ? 1 : -1;
+      A[i][j] = frac(sign * count, 1);
+    });
+  });
+  return {A, elements, compounds};
+}
+
+// Row reduce to reduced row echelon form (fractions)
+function rref(matrix){
+  const m = matrix.length, n = matrix[0].length;
+  let row = 0, col = 0;
+  const M = matrix.map(r => r.map(c => frac(c.n,c.d)));
+  while(row < m && col < n){
+    // find pivot with non-zero in or below row
+    let sel = -1;
+    for(let i=row;i<m;i++) if(!isZeroF(M[i][col])){ sel=i; break; }
+    if(sel === -1){ col++; continue; }
+    // swap
+    if(sel !== row){ const tmp = M[sel]; M[sel] = M[row]; M[row] = tmp; }
+    // normalize pivot row
+    const piv = M[row][col];
+    for(let j=col;j<n;j++) M[row][j] = divF(M[row][j], piv);
+    // eliminate others
+    for(let i=0;i<m;i++){
+      if(i===row) continue;
+      const factor = M[i][col];
+      if(isZeroF(factor)) continue;
+      for(let j=col;j<n;j++){
+        M[i][j] = subF(M[i][j], mulF(factor, M[row][j]));
+      }
+    }
+    row++; col++;
+  }
+  return M;
+}
+
+// find integer nullspace vector (smallest positive integers)
+function nullspaceInteger(A){
+  // A: rows x cols
+  const rrefM = rref(A);
+  const m = rrefM.length, n = rrefM[0].length;
+  // determine pivot columns
+  const pivotCols = [];
+  for(let i=0;i<m;i++){
+    const row = rrefM[i];
+    let pivot = row.findIndex(x=> !isZeroF(x));
+    if(pivot !== -1) pivotCols.push(pivot);
+  }
+  const freeCols = [];
+  for(let j=0;j<n;j++) if(!pivotCols.includes(j)) freeCols.push(j);
+  if(freeCols.length === 0){
+    // no free variables; trivial solution only
+    return null;
+  }
+  // set free variable(s) to lcm of denominators to get integers; choose last free var = 1
+  const solution = Array(n).fill(frac(0,1));
+  const free = freeCols[0]; // choose first free var
+  solution[free] = frac(1,1);
+  // back-solve for pivot columns
+  for(let i=m-1;i>=0;i--){
+    // find pivot in row
+    const row = rrefM[i];
+    let piv = -1;
+    for(let j=0;j<n;j++){ if(!isZeroF(row[j])){ piv = j; break; } }
+    if(piv === -1) continue;
+    // pivot variable = - sum_{j>piv} row[j]*x[j]
+    let acc = frac(0,1);
+    for(let j=piv+1;j<n;j++){
+      if(!isZeroF(row[j]) && !isZeroF(solution[j])){
+        acc = addF(acc, mulF(row[j], solution[j]));
+      }
+    }
+    solution[piv] = frac(-acc.n, acc.d); // negative
+  }
+  // convert to integers by LCM of denominators
+  let L = 1;
+  for(const s of solution) L = lcm(L, s.d);
+  const ints = solution.map(s => s.n * (L / s.d));
+  // make all positive by flipping sign if needed
+  // find gcd to reduce
+  let sign = 1;
+  for(const v of ints) if(v !== 0) { if(v < 0) { sign = -1; } break; }
+  const intsPos = ints.map(v => v * sign);
+  // reduce by gcd
+  let G = 0;
+  for(const v of intsPos) G = gcd(G, Math.abs(v));
+  const final = intsPos.map(v => Math.round(v / G));
+  return final;
+}
+
+function balanceEquation(equation){
+  const parsed = parseReactionString(equation);
+  if(!parsed) throw new Error('Invalid reaction format. Use "->" to separate sides.');
+  const {A, elements, compounds} = buildMatrix(parsed);
+  const ns = nullspaceInteger(A);
+  if(!ns) throw new Error('Could not find non-trivial solution.');
+  // assemble balanced string
+  const left = parsed.left.map((c,i)=> (ns[i]===1? '': ns[i]+' ') + c.formula).join(' + ');
+  const right = parsed.right.map((c,i)=> {
+    const idx = parsed.left.length + i;
+    return (ns[idx]===1? '': ns[idx]+' ') + c.formula;
+  }).join(' + ');
+  return {balanced: left + ' -> ' + right, coeffs: ns, compounds};
+}
+
+/* ---------- UI wiring ---------- */
+function renderPTable(list){
+  const container = document.getElementById('ptable');
+  container.innerHTML = '';
+  list.forEach(el=>{
+    const div = document.createElement('div');
+    div.className = 'el';
+    div.innerHTML = `<div class="sym">${el.s}</div><div class="num">${el.z}</div><div class="small">${el.name}</div>`;
+    div.addEventListener('click', (e)=>{
+      showElementModal(el);
+    });
+    div.addEventListener('dblclick', (e)=>{
+      insertSymbolToActive(el.s);
+    });
+    container.appendChild(div);
+  });
+}
+function showElementModal(el){
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  content.innerHTML = `<h3 style="margin-top:0">${el.name} (${el.s})</h3>
+    <div class="small">Atomic number: ${el.z}</div>
+    <div class="small">Atomic mass: ${el.m}</div>
+    <div class="small">Category: ${el.cat}</div>
+    <pre>Click to insert symbol into active field. Double-click on element tile also inserts.</pre>`;
+  modal.style.display = 'flex';
+  // clicking modal content will insert symbol into active input
+  content.onclick = ()=>{ insertSymbolToActive(el.s); modal.style.display='none'; };
+}
+
+function insertSymbolToActive(sym){
+  const active = document.activeElement;
+  if(active && (active.id==='reactionInput' || active.id==='givenFormula' || active.id==='targetFormula' || active.id==='formulaInput')){
+    const start = active.selectionStart || active.value.length;
+    active.value = active.value.slice(0,start) + sym + active.value.slice(start);
+    active.focus();
+    active.setSelectionRange(start + sym.length, start + sym.length);
+  } else {
+    // append to reaction by default
+    const r = document.getElementById('reactionInput');
+    r.value = (r.value ? r.value + ' ' : '') + sym;
+    r.focus();
+  }
+}
+
+/* ---------- Buttons ---------- */
+document.getElementById('balanceBtn').addEventListener('click', ()=>{
+  const rxn = document.getElementById('reactionInput').value.trim();
+  const out = document.getElementById('balanceResult');
+  if(!rxn){ out.innerText='Enter an equation first.'; return; }
+  try{
+    const res = balanceEquation(rxn);
+    out.innerHTML = `<strong>Balanced:</strong> ${res.balanced}`;
+    // store last balanced for apply
+    window._lastBalanced = res;
+  }catch(e){
+    out.innerHTML = `<span style="color:#ffb4b4">Error: ${e.message}</span>`;
+  }
+});
+
+document.getElementById('applyBtn').addEventListener('click', ()=>{
+  if(window._lastBalanced && window._lastBalanced.balanced){
+    document.getElementById('reactionInput').value = window._lastBalanced.balanced;
+    document.getElementById('balanceResult').innerText = 'Applied balanced equation to input.';
+  } else {
+    document.getElementById('balanceResult').innerText = 'No balanced equation to apply. Press Auto-balance first.';
+  }
+});
+
+document.getElementById('molarCalc').addEventListener('click', ()=>{
+  const f = document.getElementById('formulaInput').value.trim();
+  const out = document.getElementById('molarOut');
+  if(!f){ out.innerText='Enter a formula.'; return; }
+  const res = molarMass(f);
+  if(res.error){ out.innerText = 'Error: '+res.error; return; }
+  out.innerHTML = `<strong>${f}</strong> — Molar mass: ${res.mass.toFixed(4)} g·mol⁻¹<br><span class="small">Composition: ${Object.entries(res.comp).map(e=> e[0]+(e[1]!==1?e[1]:'')).join(' ')}</span>`;
+});
+
+document.getElementById('stoichCalc').addEventListener('click', ()=>{
+  const rxn = document.getElementById('reactionInput').value.trim();
+  const given = document.getElementById('givenFormula').value.trim();
+  const gMass = parseFloat(document.getElementById('givenMass').value);
+  const target = document.getElementById('targetFormula').value.trim();
+  const out = document.getElementById('stoichOut');
+  if(!rxn || !given || isNaN(gMass) || !target){ out.innerText='Fill all stoichiometry fields.'; return; }
+  try{
+    const parsed = parseReactionString(rxn);
+    if(!parsed){ out.innerText='Could not parse reaction. Ensure "->" separates sides.'; return; }
+    // apply coefficients if balanced and stored
+    let coeffs = null;
+    if(window._lastBalanced && window._lastBalanced.compounds){
+      coeffs = window._lastBalanced.coeffs;
+    } else {
+      // attempt to balance on the fly (best-effort)
+      try{ const b = balanceEquation(rxn); coeffs = b.coeffs; }catch(e){ coeffs = null; }
+    }
+    // find indices
+    const compounds = parsed.left.concat(parsed.right).map(c=> c.formula);
+    const idxGiven = compounds.findIndex(x=> x===given);
+    const idxTarget = compounds.findIndex(x=> x===target);
+    if(idxGiven === -1 || idxTarget === -1){ out.innerText='Given or target compound not found in reaction.'; return; }
+    // if no coeffs, use provided coefficients in string or default 1
+    let coefGiven = parsed.left.concat(parsed.right)[idxGiven].coef;
+    let coefTarget = parsed.left.concat(parsed.right)[idxTarget].coef;
+    if(coeffs){
+      coefGiven = coeffs[idxGiven];
+      coefTarget = coeffs[idxTarget];
+    }
+    // molar masses
+    const mg = molarMass(given);
+    const mt = molarMass(target);
+    if(mg.error || mt.error){ out.innerText = 'Molar mass error: '+(mg.error||mt.error); return; }
+    const molesGiven = gMass / mg.mass;
+    const molesTarget = molesGiven * (coefTarget / coefGiven);
+    const massTarget = molesTarget * mt.mass;
+    out.innerHTML = `Given: ${gMass} g ${given} → ${molesGiven.toExponential(6)} mol<br>
+      Target moles: ${molesTarget.toExponential(6)} mol<br>
+      Mass of ${target}: <strong>${massTarget.toFixed(6)} g</strong>`;
+  }catch(e){
+    out.innerText = 'Error: '+e.message;
+  }
+});
+
+/* ---------- periodic table rendering & search ---------- */
+renderPTable(ELEMENTS);
+document.getElementById('searchEl').addEventListener('input', (e)=>{
+  const q = e.target.value.trim().toLowerCase();
+  if(!q) return renderPTable(ELEMENTS);
+  const filtered = ELEMENTS.filter(el => el.s.toLowerCase().includes(q) || el.name.toLowerCase().includes(q) || String(el.z)===q);
+  renderPTable(filtered);
+});
+document.getElementById('clearSearch').addEventListener('click', ()=>{
+  document.getElementById('searchEl').value = '';
+  renderPTable(ELEMENTS);
+});
+document.getElementById('closeModal').addEventListener('click', ()=> document.getElementById('modal').style.display='none');
+document.getElementById('modal').addEventListener('click', (e)=>{ if(e.target.id==='modal') document.getElementById('modal').style.display='none'; });
+
+document.getElementById('insertDot').addEventListener('click', ()=>{
+  const active = document.activeElement;
+  if(active && (active.tagName==='INPUT' || active.tagName==='TEXTAREA')){ active.value += '·'; active.focus(); }
+});
+
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  const html = '<!doctype html>\\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'nexonchem_balanced.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  document.getElementById('reactionInput').value='';
+  document.getElementById('balanceResult').innerText='Press "Auto-balance" to balance the entered equation';
+  document.getElementById('givenFormula').value=''; document.getElementById('givenMass').value=''; document.getElementById('targetFormula').value='';
+  document.getElementById('molarOut').innerText='Molar mass output';
+  document.getElementById('stoichOut').innerText='Results will appear here';
+});
+
+/* ---------- init defaults ---------- */
+document.getElementById('reactionInput').value = 'H2 + O2 -> H2O';
+document.getElementById('formulaInput').value = 'Ca(OH)2';
+</script>
+</body>
+</html>
